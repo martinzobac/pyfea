@@ -22,6 +22,11 @@ class WrongChannel(Error):
             "Incorrect channel %d " % channel
         )
 
+class ExpectedBooleanValue(Error):
+    def __init__(self, value):
+        super(ExpectedBooleanValue, self).__init__(
+            "Expected boolean value, %s received instead " % value
+        )
 
 
 class EloError(Error):
@@ -31,3 +36,6 @@ class EloError(Error):
         )
         self.error_code = error_code
         self.error_text = error_text
+
+class VISAError(Error):
+    pass
