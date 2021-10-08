@@ -10,7 +10,7 @@ with open('LICENSE') as f:
 setup(
     name='pyelo',
     version='0.1.0',
-    description='Package for control of NCK ELO unit',
+    description='Package NCK ELO unit control using VISA library',
     long_description=readme,
     author='Martin Zobač',
     author_email='zobac@isibrno.cz',
