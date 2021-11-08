@@ -147,12 +147,14 @@ class Instrument:
         voltages = [str(v) for v in voltages]
         self._parent.write('SOUR%d:VOLT (@%s),%s' % (self.number, self._channel_str_list(channels), ','.join(voltages)))
 
-    def get_voltage(self, channels=None):
-        channels = self._channel_list(channels)
-        voltages = []
-        for channel in channels:
-            voltages.append(self.voltages[channel-1])
-        return voltages
+    def get_voltage(self, channels=None) -> List[float]:
+        return floats(self._parent.query('SOUR%d:VOLT? (@%s)' %
+                                         (self.number, self._channel_str_list(channels))).split(','))
+        #channels = self._channel_list(channels)
+        #voltages = []
+        #for channel in channels:
+        #    voltages.append(self.voltages[channel-1])
+        #return voltages
 
     def set_range(self, channels, range, range2=None):
         channels = self._channel_list(channels)
