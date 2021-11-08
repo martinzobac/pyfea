@@ -1,3 +1,5 @@
+import time
+
 from PyQt5.QtWidgets import (
     QWidget,
     QApplication,
@@ -78,10 +80,12 @@ class TopBar(QFrame):
 
         self.openButton = QPushButton("Open")
 
-        self.enableAllInstruments = QPushButton("Enable all instruments")
-        self.enableAllInstruments.clicked.connect(self.enableAllInstrumentsClick)
+        self.enableAllInstruments = QPushButton("Enable all inst.")
+        self.enableAllInstruments.clicked.connect(parent.enableAllInstruments)
         self.enableAll = QPushButton("Enable all")
-        self.enableAll.clicked.connect(self.enableAllClick)
+        self.enableAll.clicked.connect(parent.enableAll)
+        self.disableAllInstruments = QPushButton("Disable all")
+        self.disableAllInstruments.clicked.connect(parent.disableAllInstruments)
         self.exitButton = QPushButton("Quit")
 
         self.visaNameEdit = QLineEdit()
@@ -91,17 +95,8 @@ class TopBar(QFrame):
         self.horizontalLayout.addWidget(self.openButton)
         self.horizontalLayout.addWidget(self.enableAllInstruments)
         self.horizontalLayout.addWidget(self.enableAll)
+        self.horizontalLayout.addWidget(self.disableAllInstruments)
         self.horizontalLayout.addWidget(self.exitButton)
-
-    def enableAllInstrumentsClick(self):
-        for instrument in self.elo._instruments:
-            instrument.turn_on(wait=False)
-
-
-    def enableAllClick(self):
-        for instrument in self.elo._instruments:
-            instrument.turn_on(wait=False)
-            instrument.turn_on_channels()
 
 
 class ChannelPanel(QFrame):
@@ -134,7 +129,7 @@ class ChannelPanel(QFrame):
 
 
         self.enableCB = QCheckBox("Enable")
-        self.enableCB.stateChanged.connect(self.enableChanged)
+        self.enableCB.clicked.connect(self.enableChanged)
 
         self.status = StatusLed()
 
@@ -169,6 +164,7 @@ class ChannelPanel(QFrame):
     def enableChanged(self):
         if self.enableCB.isChecked():
             self.instrument.turn_on_channels(self.channelNumber)
+            self.valueChanged()
 
         else:
             self.instrument.turn_off_channels(self.channelNumber)
@@ -260,7 +256,7 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         self.setWindowTitle("ELO Control")
-        self.resize(1400, 900)
+        self.resize(1150, 550)
         self.elo = Elo()
 
         self.centralWidget = QWidget(self)
@@ -326,6 +322,7 @@ class MainWindow(QMainWindow):
                 channelPanel = ChannelPanel(panel, channel)
                 channelPanel.setInstrument(instrument)
                 panel.addChannelPanel(channelPanel)
+                channelPanel.setpoint.setValue(instrument.get_voltage(channel)[0])
 
         self.horizontalLayout.addSpacerItem(
             QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
@@ -352,9 +349,24 @@ class MainWindow(QMainWindow):
             self.topBar.openButton.setText("Close")
             self.populate_instrument_box()
 
+    def enableAllInstruments(self):
+        for instrument in self.elo._instruments:
+            instrument.turn_on(wait=False)
 
-    def reportProgress(self, n):
-        self.stepLabel.setText(f"Long-Running Step: {n}")
+    def disableAllInstruments(self):
+        for instrument in self.elo._instruments:
+            instrument.turn_off(wait=False)
+
+    def enableAll(self):
+        self.enableAllInstruments()
+        self.elo.wait_for_operation_complete()
+
+        for instPanel in self.instrumentPanels:
+            for channelPanel in instPanel.channelPanels:
+                instPanel.instrument.turn_on_channels(channelPanel.channelNumber)
+                #time.sleep(0.1)
+                value = float(channelPanel.setpoint.value())
+                instPanel.instrument.set_voltage(channelPanel.channelNumber, value)
 
     def runBackgroundTask(self):
         self.thread = QThread()
@@ -414,6 +426,7 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon("elo.ico"))
     window = MainWindow()
+    #window.set_visa_name('TCPIP0::192.168.0.60::hislip0::INSTR')
     window.set_visa_name('GPIB::22::INSTR')
     window.open_close_click()
     window.show()
