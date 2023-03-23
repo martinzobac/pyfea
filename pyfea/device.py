@@ -1,13 +1,13 @@
-"""Main ELO class
+"""Main FEA class
 
-This file is part of PyELO.
+This file is part of PyFEA.
 
 """
 
 import pyvisa
-import pyelo
-from pyelo.errors import *
-from pyelo.constants import *
+import pyfea
+from pyfea.errors import *
+from pyfea.constants import *
 from pyvisa import constants
 import ctypes
 import threading
@@ -21,8 +21,8 @@ def event_handler(resource, event, user_handle):
     device._event_callback()
 
 
-class Elo:
-    """Main ELO-NCK class"""
+class Fea:
+    """Main FEA class"""
 
     def __init__(self, visa_name=None):
         """Object constructor"""
@@ -51,7 +51,7 @@ class Elo:
     def __delete__(self):
         self.close()
 
-    from pyelo.instrument import Instrument
+    from pyfea.instrument import Instrument
 
     @property
     def instruments(self) -> List[Instrument]:
@@ -72,7 +72,7 @@ class Elo:
             self._visa.query_delay = 0.0
             self._visa.clear()
         except pyvisa.errors.VisaIOError:
-            raise pyelo.errors.VISAError
+            raise pyfea.errors.VISAError
 
         self.init()
 
@@ -82,17 +82,19 @@ class Elo:
         self.serial = idn[2]
         self.fw_version = idn[3]
 
-        if self.vendor != ELO_VENDOR or idn[1] != ELO_NAME:
+        if self.vendor != FEA_VENDOR or idn[1] != FEA_NAME:
             raise WrongId(self)
 
         self.instrument_nums, self.instrument_names = self.read_instrument_list()
         self._instruments = []
         for name, num in zip(self.instrument_names, self.instrument_nums):
             new_object = None
-            if name.startswith('QBS'):
-                new_object = pyelo.Qbs(self, num, name)
-            elif name.startswith('DUS'):
-                new_object = pyelo.Dus(self, num, name)
+            if name.startswith('EPS'):
+                new_object = pyfea.Eps(self, num, name)
+            elif name.startswith('SPS'):
+                new_object = pyfea.Sps(self, num, name)
+            elif name.startswith('APS'):
+                new_object = pyfea.Aps(self, num, name)
             self._instruments.append(new_object)
 
         self.instrument_selected = None
@@ -128,6 +130,8 @@ class Elo:
     def _lock(self):
         """Acquire lock for the resource"""
         self._semaphore.acquire()
+
+
 
     def _unlock(self):
         """Release lock for the resource"""
@@ -306,7 +310,7 @@ class Elo:
         self._lock()
         try:
             event = int(self.query('STAT:QUES?', False, lock=False))
-            if event & pyelo.constants.QUEST_INST_SUM:
+            if event & pyfea.constants.QUEST_INST_SUM:
                 inst_event = int(self.query('STAT:QUES:INST?', False, lock=False))
                 for inst in self._instruments:
                     if inst_event & (1 << inst.number):
@@ -318,8 +322,8 @@ class Elo:
                                 channel_cond = int(self.query('STAT:QUES:INST%d:ISUM:COND? (@%d)' %
                                                               (inst.number, channel), False, lock=False))
 
-                                if channel_event & pyelo.constants.QUEST_VOLTAGE:
-                                    inst._set_ready(channel, not channel_cond & pyelo.constants.QUEST_VOLTAGE)
+                                if channel_event & pyfea.constants.QUEST_VOLTAGE:
+                                    inst._set_ready(channel, not channel_cond & pyfea.constants.QUEST_VOLTAGE)
                                     # print('Inst. %s/channel %d is %sready' %
                                     #      (inst.name, channel, 'NOT ' if not inst.is_ready(channel) else ''))
         finally:
@@ -329,19 +333,19 @@ class Elo:
         stb = self.get_stb()
         # print('STB: %02x' % stb)
 
-        if stb & pyelo.constants.STB_QES:
+        if stb & pyfea.constants.STB_QES:
             self.read_questionable_regs()
 
-        if stb & pyelo.constants.STB_ERR:
+        if stb & pyfea.constants.STB_ERR:
             self.error = True
         else:
             self.error = False
 
 
     def is_operation_completed(self) -> bool:
-        elo.write('*OPC')
-        if self.get_stb() & pyelo.constants.STB_ESR:
-            return self.get_esr() & pyelo.constants.ESR_OPC != 0
+        fea.write('*OPC')
+        if self.get_stb() & pyfea.constants.STB_ESR:
+            return self.get_esr() & pyfea.constants.ESR_OPC != 0
         else:
             return False
 
@@ -373,16 +377,16 @@ class Elo:
 
 
 if __name__ == '__main__':
-    elo = Elo('GPIB::22::INSTR')
-    elo.init()
+    fea = Fea('GPIB::22::INSTR')
+    fea.init()
 
-    print('Vendor: %s' % elo.vendor)
-    print('Unit: %s' % elo.unit_name)
-    print('Serial: %s' % elo.serial)
-    print('Fw version: %s' % elo.fw_version)
-    print('Instruments: %s' % ', '.join(elo.instrument_names))
+    print('Vendor: %s' % fea.vendor)
+    print('Unit: %s' % fea.unit_name)
+    print('Serial: %s' % fea.serial)
+    print('Fw version: %s' % fea.fw_version)
+    print('Instruments: %s' % ', '.join(fea.instrument_names))
 
-    instruments = elo._instruments
+    instruments = fea._instruments
 
     from time import sleep
 
@@ -392,7 +396,7 @@ if __name__ == '__main__':
         sleep(0.1)
 
     print('Waiting for OPC')
-    elo.wait_for_operation_complete()
+    fea.wait_for_operation_complete()
 
     from random import uniform
 
@@ -416,7 +420,7 @@ if __name__ == '__main__':
             # currents = instrument.measure_current(instrument.channels)
             # print('%s currents: %s' % (instrument.name, ', '.join(['%.2f uA' % (val * 1e6) for val in currents])))
         sleep(0.5)
-        ready = elo.is_operation_completed()
+        ready = fea.is_operation_completed()
         if ready:
             if timer > 0:
                 timer -= 1

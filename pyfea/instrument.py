@@ -1,9 +1,9 @@
 """Virtual instrument base class
 
-This file is part of PyELO.
+This file is part of PyFEA.
 
 """
-from pyelo.errors import *
+from pyfea.errors import *
 from typing import (List)
 from datetime import datetime
 
@@ -35,7 +35,7 @@ def str_to_bool(string):
 
 
 class Instrument:
-    """Base class for all ELO virtual instruments."""
+    """Base class for all FEA virtual instruments."""
 
     def __init__(self, parent, number, name):
         self._parent = parent
@@ -88,51 +88,6 @@ class Instrument:
             Actual internal temperature of the instrument in degrees Celsius
         """
         return float(self._parent.query('DIAG%d:TEMP?' % self.number))
-
-    def _channel_list(self, channels):
-        if not channels:
-            channels = self.channels
-
-        if not isinstance(channels, tuple) and not isinstance(channels, list):
-            channels = [channels, ]
-
-        return [int(channel) for channel in channels]
-
-    def _channel_str_list(self, channels) -> str:
-        """Convert channel tuple or list to comma separated list.
-
-        Parameters
-        ----------
-        channels
-            Tuple or list of channel numbers.
-
-        Returns
-        -------
-        str
-            Comma separated list of channel numbers
-        """
-        channels = self._channel_list(channels)
-        string = ''
-        for channel in channels:
-            if channel not in self.channels:
-                raise WrongChannel(self, channel)
-            else:
-                if string != '':
-                    string += ','
-                string += str(channel)
-        return string
-
-    def turn_on_channels(self, channels=None):
-        """Turn on one or more channels."""
-        self._parent.write('OUTP%d:STAT (@%s),ON' % (self.number, self._channel_str_list(channels)))
-
-    def turn_off_channels(self, channels=None):
-        """Turn off one or more channels."""
-        self._parent.write('OUTP%d:STAT (@%s),OFF' % (self.number, self._channel_str_list(channels)))
-
-    def get_channels_state(self, channels=None):
-        response = self._parent.query('OUTP%d:STAT? (@%s)' % (self.number, self._channel_str_list(channels))).split(',')
-        return bools(response)
 
     def set_voltage(self, channels, voltages):
         """Set one or more channels' voltages."""
