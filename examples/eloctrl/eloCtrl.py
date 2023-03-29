@@ -27,8 +27,8 @@ from PyQt5.QtGui import QColor
 import setupRange
 from time import sleep
 import sys
-from pyelo import Elo
-import pyelo.errors
+from pyfea import Fea
+import pyfea.errors
 from LedIndicatorWidget import LedIndicator
 
 SIM = False
@@ -73,10 +73,10 @@ class StatusLed(LedIndicator):
         self.update()
 
 class TopBar(QFrame):
-    def __init__(self, parent, elo: pyelo.Elo):
+    def __init__(self, parent, fea: pyfea.Fea):
         super(TopBar, self).__init__(parent)
         self.horizontalLayout = QtWidgets.QHBoxLayout(self)
-        self.elo = elo
+        self.fea = fea
 
         self.openButton = QPushButton("Open")
 
@@ -158,7 +158,7 @@ class ChannelPanel(QFrame):
         #self.grid.addItem(QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum,
         #                                        QtWidgets.QSizePolicy.Expanding), 5, 0, 1, 2)
 
-    def setInstrument(self, instrument:pyelo.Instrument):
+    def setInstrument(self, instrument:pyfea.Instrument):
         self.instrument = instrument
 
     def enableChanged(self):
@@ -191,7 +191,7 @@ class ChannelPanel(QFrame):
 
 
 class InstrumentPanel(QFrame):
-    def __init__(self, parent, instrument : pyelo.Instrument):
+    def __init__(self, parent, instrument : pyfea.Instrument):
         super(InstrumentPanel, self).__init__()
 
         self.instrument = instrument
@@ -255,15 +255,15 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
 
-        self.setWindowTitle("ELO Control")
+        self.setWindowTitle("FEA Control")
         self.resize(1150, 550)
-        self.elo = Elo()
+        self.fea = Fea()
 
         self.centralWidget = QWidget(self)
 
         self.verticalLayout = QVBoxLayout(self.centralWidget)
 
-        self.topBar = TopBar(self, self.elo)
+        self.topBar = TopBar(self, self.fea)
         self.topBar.openButton.clicked.connect(self.open_close_click)
         self.topBar.exitButton.clicked.connect(self.close)
 
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
 
         if SIM:
             for i in range(1, 4):
-                self.elo._instruments.append(pyelo.Qbs(self.elo, i, "QBS %d" % i))
+                self.fea._instruments.append(pyfea.Aps(self.fea, i, "APS %d" % i))
 
         self.populate_instrument_box()
 
@@ -313,16 +313,15 @@ class MainWindow(QMainWindow):
     def populate_instrument_box(self):
         self.clear_instrument_box()
 
-        for instrument in self.elo._instruments:
+        for instrument in self.fea._instruments:
             panel = InstrumentPanel(self, instrument)
             self.instrumentPanels.append(panel)
             self.horizontalLayout.addWidget(panel)
 
-            for channel in instrument.channels:
-                channelPanel = ChannelPanel(panel, channel)
-                channelPanel.setInstrument(instrument)
-                panel.addChannelPanel(channelPanel)
-                channelPanel.setpoint.setValue(instrument.get_voltage(channel)[0])
+            channelPanel = ChannelPanel(panel, 1)
+            channelPanel.setInstrument(instrument)
+            panel.addChannelPanel(channelPanel)
+            channelPanel.setpoint.setValue(instrument.get_voltage())
 
         self.horizontalLayout.addSpacerItem(
             QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum))
@@ -334,32 +333,32 @@ class MainWindow(QMainWindow):
         return self.topBar.visaNameEdit.text()
 
     def open_close_click(self):
-        if self.elo.is_opened():
-            self.elo.close()
+        if self.fea.is_opened():
+            self.fea.close()
             self.topBar.openButton.setText("Open")
             self.clear_instrument_box()
             self.statusBar.showMessage("Connection with %s closed" % self.get_visa_name())
         else:
             try:
-                self.elo.open(self.get_visa_name())
+                self.fea.open(self.get_visa_name())
                 self.statusBar.showMessage("Connection with %s opened" % self.get_visa_name())
-            except pyelo.errors.VISAError:
+            except pyfea.errors.VISAError:
                 self.statusBar.showMessage("Connection with %s not successful" % self.get_visa_name())
                 return
             self.topBar.openButton.setText("Close")
             self.populate_instrument_box()
 
     def enableAllInstruments(self):
-        for instrument in self.elo._instruments:
+        for instrument in self.fea._instruments:
             instrument.turn_on(wait=False)
 
     def disableAllInstruments(self):
-        for instrument in self.elo._instruments:
+        for instrument in self.fea._instruments:
             instrument.turn_off(wait=False)
 
     def enableAll(self):
         self.enableAllInstruments()
-        self.elo.wait_for_operation_complete()
+        self.fea.wait_for_operation_complete()
 
         for instPanel in self.instrumentPanels:
             for channelPanel in instPanel.channelPanels:
@@ -391,7 +390,7 @@ class Worker(QObject):
     def run(self):
         i = 0
         while True:
-            for instrument, instrumentPanel in zip(self.parentWindow.elo._instruments, self.parentWindow.instrumentPanels):
+            for instrument, instrumentPanel in zip(self.parentWindow.fea._instruments, self.parentWindow.instrumentPanels):
                 state = instrument.get_state()
                 instrumentPanel.enableCB.setChecked(state)
                 instrumentPanel.status.setChecked(state)
@@ -426,9 +425,9 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon("elo.ico"))
     window = MainWindow()
-    window.set_visa_name('TCPIP0::172.17.170.75::hislip0::INSTR')
+    #window.set_visa_name('TCPIP0::172.17.170.75::hislip0::INSTR')
     #window.set_visa_name('TCPIP0::192.168.0.60::hislip0::INSTR')
-    #window.set_visa_name('GPIB::22::INSTR')
+    window.set_visa_name('GPIB::22::INSTR')
     window.open_close_click()
     window.show()
     app.exec()

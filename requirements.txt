@@ -1,6 +1,5 @@
 pyvisa~=1.11.3
 
-pyfea~=0.1.0
 setuptools~=57.0.0
 matplotlib~=3.4.1
 PyQt5~=5.15.4

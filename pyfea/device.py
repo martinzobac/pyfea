@@ -12,6 +12,22 @@ from pyvisa import constants
 import ctypes
 import threading
 from typing import (Tuple, List)
+from datetime import datetime
+
+def bool_to_str(bool_value):
+    if bool_value:
+        return "1"
+    else:
+        return "0"
+
+def str_to_bool(string):
+    if (string=='0') | (string=='OFF'):
+        return False
+    elif (string=='1') | (string=='ON'):
+        return True
+    else:
+        raise ExpectedBooleanValue(string)
+
 
 
 def event_handler(resource, event, user_handle):
@@ -44,6 +60,10 @@ class Fea:
         self._handler = None
         self._wrapped_handler = None
         self._opened = False
+
+        self.aps = None
+        self.esp = None
+        self.sps = None
 
         if visa_name:
             self.open(visa_name)
@@ -88,14 +108,22 @@ class Fea:
         self.instrument_nums, self.instrument_names = self.read_instrument_list()
         self._instruments = []
         for name, num in zip(self.instrument_names, self.instrument_nums):
+
             new_object = None
             if name.startswith('EPS'):
-                new_object = pyfea.Eps(self, num, name)
+                self.eps = pyfea.Eps(self, num, name)
+                new_object = self.eps
             elif name.startswith('SPS'):
-                new_object = pyfea.Sps(self, num, name)
+                self.sps = pyfea.Sps(self, num, name)
+                new_object = self.sps
             elif name.startswith('APS'):
-                new_object = pyfea.Aps(self, num, name)
-            self._instruments.append(new_object)
+                self.aps = pyfea.Aps(self, num, name)
+                new_object = self.aps
+#            else:
+#                raise pyfea.errors.WrongInstrument( num )
+
+            if new_object:
+                self._instruments.append(new_object)
 
         self.instrument_selected = None
         self._wrapped_handler = self._visa.wrap_handler(event_handler)
@@ -283,7 +311,7 @@ class Fea:
         """Read STB register and if any error in the queue read it and raise exception."""
         if self.get_stb() & 4:
             error_code, error_text = self.read_error()
-            raise EloError(error_code, error_text)
+            raise FeaError(error_code, error_text)
 
 
     def get_instrument_by_number(self, number: int) -> Instrument:
@@ -341,7 +369,6 @@ class Fea:
         else:
             self.error = False
 
-
     def is_operation_completed(self) -> bool:
         fea.write('*OPC')
         if self.get_stb() & pyfea.constants.STB_ESR:
@@ -375,6 +402,48 @@ class Fea:
     def set_calibration_password(self, old_password, new_password):
         self.write('CAL:PASS:NEW "%s","%s"' % (old_password, new_password))
 
+    def get_serial(self) -> str:
+        return self.query('CAL:SERIAL?').strip('"')
+
+    def set_calibration_state(self, state):
+        self.write('CAL:STATE %s' % (bool_to_str(state)))
+
+    def get_calibration_state(self):
+        return str_to_bool(self.query('CAL:STATE?'))
+
+    def set_calibration_remark(self, remark):
+        self.write('CAL:REM "%s"' % remark)
+
+    def get_calibration_remark(self):
+        return self.query('CAL:REM?').strip('"')
+
+    def set_calibration_serial(self, serial):
+        self.write('CAL:SER %s' % serial)
+
+    def get_calibration_serial(self):
+        return self.query('CAL:SER?' % self.number).strip('"')
+
+    def set_calibration_temperature(self, temperature):
+        self.write('CAL:TEMP %f' % temperature)
+
+    def get_calibration_temperature(self):
+        return float(self.query('CAL:TEMP?'))
+
+    def update_calibration_time_and_temperature(self):
+        self.write('CAL:UPD' )
+
+    def get_calibration_datetime(self):
+        return datetime.fromisoformat(self.query('CAL:DATE?' ).strip('"'))
+
+    def set_calibration_datetime(self, datetime_object : datetime):
+        self.write('CAL:DATE "%s"' % (datetime_object.strftime('%Y-%m-%d %H:%M:%S')))
+
+    def save_calibration(self):
+        self.write('CAL:SAVE')
+
+    def load_calibration(self):
+        self.write('CAL:LOAD')
+
 
 if __name__ == '__main__':
     fea = Fea('GPIB::22::INSTR')
@@ -390,33 +459,20 @@ if __name__ == '__main__':
 
     from time import sleep
 
-    print('Starting all instruments')
-    for instrument in instruments:
-        instrument.turn_on(False)
-        sleep(0.1)
+    print('Starting EPS')
+    fea.eps.set_voltage(2000)
+    fea.eps.turn_on(False)
+    sleep(0.1)
 
     print('Waiting for OPC')
     fea.wait_for_operation_complete()
 
-    from random import uniform
-
-    print('Setting output voltages')
-    for instrument in instruments:
-        instrument.turn_on_channels(instrument.channels)
-        voltages = []
-        for channel in instrument.channels:
-            voltages.append(instrument.min_voltage/2)
-            # voltages.append(uniform(instrument.min_voltage, instrument.max_voltage))
-
-        instrument.set_voltage(instrument.channels, voltages)
-
-    print('Waiting for OPC')
     done = False
     timer = 10
     while not done:
         for instrument in instruments:
-            voltages = instrument.measure_voltage(instrument.channels)
-            print('%s voltages: %s' % (instrument.name, ', '.join(['%.2f V' % val for val in voltages])))
+            voltage = instrument.measure_voltage()
+            print('%s voltage: %.2f V' % (instrument.name, voltage))
             # currents = instrument.measure_current(instrument.channels)
             # print('%s currents: %s' % (instrument.name, ', '.join(['%.2f uA' % (val * 1e6) for val in currents])))
         sleep(0.5)
