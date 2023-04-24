@@ -1,5 +1,7 @@
 from matplotlib import pyplot as plt
 import numpy as np
+from numpy import outer
+
 from pyfea import Fea
 import pyvisa
 from time import sleep
@@ -49,9 +51,19 @@ def qcom_calibration(xps, test_levels):
 
     print('Saving program calibration')
     program_cal_points = xps.get_program_calibration_points()
+    output_range = xps.get_range()
+    ovp = xps.get_ovp()
+    ocp = xps.get_ocp()
+    rise_rate = xps.get_rise_rate()
+    fall_rate = xps.get_fall_rate()
 
     print('Disabling program scaling')
     xps.set_program_calibration_points([(0, 0), (1, 1)])
+    xps.set_ovp(False)
+    xps.set_ocp(False)
+#    xps.set_range(1)
+    xps.set_rise_rate(1e9)
+    xps.set_fall_rate(1e9)
 
     print('Turning on %s' % xps.name)
     xps.set_voltage(0)
@@ -89,6 +101,11 @@ def qcom_calibration(xps, test_levels):
 
     # Restore program cal points
     xps.set_program_calibration_points(program_cal_points)
+ #   xps.set_range(output_range)
+    xps.set_ovp(ovp)
+    xps.set_ovp(ocp)
+    xps.set_rise_rate(rise_rate)
+    xps.set_fall_rate(fall_rate)
 
     ax = plt.subplot(211)
     ax.cla()
@@ -105,7 +122,7 @@ def qcom_calibration(xps, test_levels):
     store_qcom = input('Store QCOM data? y/n')
     if store_qcom and store_qcom.lower()[0] == 'y':
         # Set newly acquired quiescent current compensation points
-        xps.set_quiscent_compensation_points(cal_quiescent_points)
+        xps.set_quiescent_compensation_points(cal_quiescent_points)
         # Turn qcom on
         xps.quiescent_compensation(True)
 
@@ -118,6 +135,10 @@ def do_calibration(xps, test_levels):
 
     print('Saving program calibration')
     program_cal_points = xps.get_program_calibration_points()
+    ovp = xps.get_ovp()
+    ocp = xps.get_ocp()
+    xps.set_ovp(False)
+    xps.set_ocp(False)
 
     print('Disabling program scaling')
     xps.set_program_calibration_points([(0, 0), (1, 1)])
@@ -171,6 +192,8 @@ def do_calibration(xps, test_levels):
 
     # Restore program cal points
     xps.set_program_calibration_points(program_cal_points)
+    xps.set_ovp(ovp)
+    xps.set_ovp(ocp)
 
     plt.figure(1)
     ax = plt.subplot(221)
@@ -212,10 +235,11 @@ if __name__ == '__main__':
     open_devices()
 
     # xps = fea.eps
-    # test_levels = np.linspace(0, 0.9, 5)
+    # xps = fea.sps
 
-    xps = fea.sps
-    test_levels = np.linspace(0, 0.6, 5)
+    xps = fea.aps
+    test_levels = np.linspace(0, xps.max_norm_prog, 5)
+
 
     print('Turning supply off and waiting')
     xps.turn_off(True)

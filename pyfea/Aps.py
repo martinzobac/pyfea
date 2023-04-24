@@ -9,4 +9,5 @@ class Aps(pyfea.Supply):
         self.ready = True
         self.max_voltage = 10000
         self.min_voltage = 0
+        self.max_norm_prog = 0.8        # maximal normalized voltage program value
 

@@ -9,4 +9,5 @@ class Eps(pyfea.Supply):
         self.ready = True
         self.max_voltage = 5000
         self.min_voltage = 0
+        self.max_norm_prog = 0.9        # maximal normalized voltage program value
 
