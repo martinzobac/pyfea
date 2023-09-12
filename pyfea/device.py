@@ -102,7 +102,7 @@ class Fea:
         self.serial = idn[2]
         self.fw_version = idn[3]
 
-        if self.vendor != FEA_VENDOR or idn[1] != FEA_NAME:
+        if self.unit_name != FEA_NAME:
             raise WrongId(self)
 
         self.instrument_nums, self.instrument_names = self.read_instrument_list()
@@ -119,8 +119,11 @@ class Fea:
             elif name.startswith('APS'):
                 self.aps = pyfea.Aps(self, num, name)
                 new_object = self.aps
-#            else:
-#                raise pyfea.errors.WrongInstrument( num )
+            elif name.startswith('AMP'):
+                self.amm = pyfea.Amm(self, num, name)
+                new_object = self.amm
+            else:
+                raise pyfea.errors.WrongInstrument( num )
 
             if new_object:
                 self._instruments.append(new_object)
@@ -267,9 +270,9 @@ class Fea:
             nums.append(int(num))
         return nums, names
 
-    def wait_for_operation_complete(self):
+    def wait_for_operation_complete(self, timeout=15000):
         """Wait for finishing of previous (pending) operations ."""
-        self.query('*OPC?', time_out=15000)
+        self.query('*OPC?', time_out=timeout)
 
     def select_instrument(self, inst_num: int):
         """Select one of virtual instruments.

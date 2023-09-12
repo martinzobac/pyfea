@@ -34,7 +34,7 @@ class Instrument:
         self._parent.select_instrument(self.number)
 
     def is_ready(self, channel):
-        """Check if output channel voltage is ready (settled) or not."""
+        """Check if is ready or not."""
 
         self._parent.read_questionable_regs()
 

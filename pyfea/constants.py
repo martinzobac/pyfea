@@ -1,4 +1,4 @@
-FEA_VENDOR = 'ISI'
+FEA_VENDOR = 'ISI Brno'
 FEA_NAME = 'FEA'
 
 STB_ERR = 4

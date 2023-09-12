@@ -65,10 +65,10 @@ def qcom_calibration(xps, test_levels):
     xps.set_rise_rate(1e9)
     xps.set_fall_rate(1e9)
 
-    print('Turning on %s' % xps.name)
+    print('Turning on %s, waiting 10 sec.' % xps.name)
     xps.set_voltage(0)
     xps.turn_on(True)
-    sleep(0.5)
+    sleep(10)
 
     cal_quiescent_points = []
     xps.quiescent_compensation(False)
@@ -79,7 +79,7 @@ def qcom_calibration(xps, test_levels):
     print('Iterating program levels ')
     for level in test_levels:
         xps.set_voltage(level)
-        sleep(2)
+        sleep(10)
         voltage_adc_values = []
         current_adc_values = []
         for i in range(0, 10):
@@ -143,10 +143,10 @@ def do_calibration(xps, test_levels):
     print('Disabling program scaling')
     xps.set_program_calibration_points([(0, 0), (1, 1)])
 
-    print('Turning on %s' % xps.name)
+    print('Turning on %s, waiting 10 sec.' % xps.name)
     xps.set_voltage(0)
     xps.turn_on(True)
-    sleep(0.5)
+    sleep(10)
 
     voltage_adc_vec = []
     current_adc_vec = []
@@ -155,7 +155,7 @@ def do_calibration(xps, test_levels):
 
     for level in test_levels:
         xps.set_voltage(level)
-        sleep(2)
+        sleep(10)
 
         voltage_ext_values = []
         current_ext_values = []
@@ -236,8 +236,8 @@ if __name__ == '__main__':
 
     # xps = fea.eps
     # xps = fea.sps
-
     xps = fea.aps
+
     test_levels = np.linspace(0, xps.max_norm_prog, 5)
 
 

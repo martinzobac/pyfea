@@ -5,7 +5,7 @@ class Error(Exception):
 class WrongId(Error):
     def __init__(self, elo):
         super(WrongId, self).__init__(
-            "Incorrect ID of %s: %s,%s" % (elo.visaName, elo.vendor,elo.unit_name)
+            "Incorrect ID of %s: %s,%s" % (elo.visa_name, elo.vendor, elo.unit_name)
         )
 
 
