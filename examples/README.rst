@@ -1,7 +1,7 @@
-NCK ELO control examples
+FEA control examples
 ===============
 
-This folder contains some examples of pyelo usage.
+This folder contains some examples of pyfea usage.
 
 
 ---------------
